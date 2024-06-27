@@ -1,0 +1,79 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.stats import norm
+import yfinance as yf
+import alpha_vantage.timeseries as av
+
+def get_user_input():
+    """
+    Get user input for API keys, stock symbol, and option parameters
+    """
+    yahoo_api_key = input("Enter your Yahoo Finance API key: ")
+    alpha_vantage_api_key = input("Enter your Alpha Vantage API key: ")
+    stock_symbol = input("Enter the stock symbol (e.g. AAPL): ")
+    strike_price = float(input("Enter the strike price: "))
+    time_to_maturity = float(input("Enter the time to maturity (in years): "))
+    risk_free_rate = float(input("Enter the risk-free interest rate: "))
+    dividend_yield = float(input("Enter the dividend yield: "))
+    return yahoo_api_key, alpha_vantage_api_key, stock_symbol, strike_price, time_to_maturity, risk_free_rate, dividend_yield
+
+def geo_paths(S, T, r, q, sigma, steps, N):
+    """
+    Inputs:
+    #S = Current stock Price
+    #T = Time to maturity 1 year = 1, 1 months = 1/12
+    #r = risk free interest rate
+    #q = dividend yield
+    # sigma = volatility
+
+    Output:
+    # [steps,N] Matrix of asset paths
+    """
+    dt = T/steps
+    #S_{T} = ln(S_{0})+\int_{0}^T(\mu-\frac{\sigma^2}{2})dt+\int_{0}^T \sigma dW(t)
+    ST = np.log(S) +  np.cumsum(((r - q - sigma**2/2)*dt + sigma*np.sqrt(dt) * np.random.normal(size=(steps,N))),axis=0)
+    return np.exp(ST)
+
+def black_scholes_call(S, K, T, r, q, sigma):
+    """
+    Inputs:
+    #S = Current stock Price
+    #K = Strike Price
+    #T = Time to maturity 1 year = 1, 1 months = 1/12
+    #r = risk free interest rate
+    #q = dividend yield
+    # sigma = volatility
+
+    Output:
+    # call_price = value of the option
+    """
+    d1 = (np.log(S/K) + (r - q + sigma**2/2)*T) / (sigma*np.sqrt(T))
+    d2 = d1 - sigma* np.sqrt(T)
+    call = S * np.exp(-q*T)* norm.cdf(d1) - K * np.exp(-r*T)*norm.cdf(d2)
+    return call
+
+def main():
+    yahoo_api_key, alpha_vantage_api_key, stock_symbol, strike_price, time_to_maturity, risk_free_rate, dividend_yield = get_user_input()
+
+    # Retrieve current stock price from Yahoo Finance
+    stock_data = yf.Ticker(stock_symbol)
+    current_stock_price = stock_data.info["regularMarketPrice"]
+
+    # Retrieve historical volatility from Alpha Vantage
+    av_api = av.AlphaVantage(api_key=alpha_vantage_api_key)
+    hist_volatility = av_api.get_daily_adjusted(symbol=stock_symbol, output_format="pandas")["5. adjusted close"].rolling(window=20).std().mean() * np.sqrt(252)
+
+    # Run Monte Carlo simulation
+    paths = geo_paths(current_stock_price, time_to_maturity, risk_free_rate, dividend_yield, hist_volatility, 100, 100000)
+    payoffs = np.maximum(paths[-1]-strike_price, 0)
+    option_price = np.exp(-risk_free_rate*time_to_maturity)*np.mean(payoffs)
+
+    bs_price = black_scholes_call(current_stock_price, strike_price, time_to_maturity, risk_free_rate, dividend_yield, hist_volatility)
+
+    print(f"Current stock price: {current_stock_price}")
+    print(f"Historical volatility: {hist_volatility}")
+    print(f"Black Scholes Price is {bs_price}")
+    print(f"Simulated price is {option_price}")
+
+if __name__ == "__main__":
+    main()
