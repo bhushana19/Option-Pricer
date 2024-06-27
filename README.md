@@ -9,6 +9,7 @@ Enter the stock symbol, strike price, time to maturity, risk-free interest rate,
 The app will display the current stock price, historical volatility, Black-Scholes price, and simulated price.
 
 # Output Window
+<br/>
 
-<img width="450"alt="Screenshot from 2024-06-27 22-32-59" src="https://github.com/bhushana19/Option-Pricer/assets/173981755/0fabc008-bf0c-4285-8378-0ca45d4d8a02">
 
+![Screenshot from 2024-06-27 22-32-59](https://github.com/bhushana19/Option-Pricer/assets/173981755/0baea867-551b-4f1e-bf0d-cf6f3121ec42)
